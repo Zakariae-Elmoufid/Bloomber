@@ -1,40 +1,29 @@
 package org.example.bloomberg.exception;
 
 import lombok.extern.slf4j.Slf4j;
-import org.example.bloomberg.dto.ErrorDetail;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.validation.FieldError;
-import org.springframework.web.bind.MethodArgumentNotValidException;
-import org.springframework.web.bind.annotation.ControllerAdvice;
+import org.springframework.http.converter.HttpMessageNotReadableException;
+import org.springframework.web.ErrorResponse;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.annotation.RestControllerAdvice;
 
-import java.util.List;
-import java.util.stream.Collectors;
 
 @Slf4j
-@ControllerAdvice
+@RestControllerAdvice
 public class GlobalExceptionHandler {
-    @ExceptionHandler(MethodArgumentNotValidException.class)
-    public ResponseEntity<Object> handleValidationExceptions(MethodArgumentNotValidException ex) {
-        List<FieldError> fieldErrors = ex.getBindingResult().getFieldErrors();
 
-        List<ErrorDetail> errorDetails = fieldErrors.stream()
-                .map(error -> {
-
-                    String fullPath = error.getField();
-
-                    return ErrorDetail.builder()
-                            .objectName(error.getObjectName())
-                            .fieldName(fullPath)
-                            .rejectedValue(String.valueOf(error.getRejectedValue()))
-                            .message(error.getDefaultMessage())
-                            .build();
-                })
-                .collect(Collectors.toList());
-        log.warn("Input validation failed: {}", errorDetails);
-        return new ResponseEntity<>(errorDetails, HttpStatus.BAD_REQUEST);
-
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<ErrorResponse> handleMalformedJson(HttpMessageNotReadableException ex) {
+        log.warn("Malformed JSON request: {}", ex.getMessage());
+        ErrorResponse errorResponse = new ErrorResponse(
+                HttpStatus.BAD_REQUEST.value(),
+                "Bad Request",
+                "The request body is malformed or unreadable."
+        );
+        return new ResponseEntity<>(errorResponse, HttpStatus.BAD_REQUEST);
     }
+    private record ErrorResponse(int status, String error, String message) {}
+
 
 }
